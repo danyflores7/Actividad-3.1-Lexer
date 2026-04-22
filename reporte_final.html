@@ -1,0 +1,1576 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Detector de Plagio — Reporte</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #f5f6f8; color: #222; font-family: Arial, sans-serif; }
+
+  header { background: #1a56a0; color: #fff; padding: 1.4rem 2rem; }
+  header h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  header p  { font-size: 0.82rem; margin: 0; opacity: .85; font-family: monospace; }
+
+  .summary {
+    display: flex; gap: 1rem; padding: 1rem 2rem;
+    background: #fff; border-bottom: 1px solid #dde; flex-wrap: wrap;
+  }
+  .stat {
+    background: #f0f4fa; border: 1px solid #c8d4e8;
+    border-radius: 6px; padding: .6rem 1.1rem; min-width: 125px;
+  }
+  .stat .label { font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: .06em; }
+  .stat .value { font-size: 1.6rem; font-weight: 700; color: #1a56a0; }
+
+  .pairs { padding: 1.4rem 2rem; display: flex; flex-direction: column; gap: 1.6rem; }
+
+  .pair-card {
+    background: #fff; border: 1px solid #d0d8e8;
+    border-radius: 8px; overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .pair-header {
+    display: flex; align-items: center; gap: 1rem;
+    padding: .9rem 1.3rem; border-bottom: 1px solid #d0d8e8;
+    background: #f8fafd; flex-wrap: wrap;
+  }
+  .rank { font-size: 0.78rem; color: #888; min-width: 22px; font-family: monospace; }
+  .filenames { flex: 1; font-size: 0.83rem; font-family: monospace; color: #333; }
+  .filenames .sep { color: #aaa; margin: 0 .35rem; }
+
+  .badge { font-size: 0.8rem; font-weight: 700; padding: .22rem .75rem; border-radius: 10px; }
+  .badge.high   { background: #fde8eb; color: #b00020; }
+  .badge.medium { background: #fef5d8; color: #8a5e00; }
+  .badge.low    { background: #e6f4ea; color: #1a6e38; }
+
+  .metrics {
+    display: flex; gap: .5rem; flex-wrap: wrap;
+    padding: .6rem 1.3rem; border-bottom: 1px solid #d0d8e8;
+    background: #fafbfd; font-size: 0.78rem; color: #555;
+  }
+  .metric-item {
+    background: #eef1f6; border-radius: 4px;
+    padding: .2rem .6rem; font-family: monospace;
+  }
+  .metric-item b { color: #1a56a0; }
+
+  .code-grid { display: grid; grid-template-columns: 1fr 1fr; }
+  .code-pane { padding: .9rem 1.1rem; }
+  .code-pane:first-child { border-right: 1px solid #d0d8e8; }
+  .code-pane .pane-title {
+    font-size: 0.68rem; color: #888; text-transform: uppercase;
+    letter-spacing: .06em; margin-bottom: .5rem; font-family: monospace;
+  }
+  pre {
+    font-family: 'Courier New', monospace; font-size: 0.75rem;
+    line-height: 1.6; white-space: pre-wrap; word-break: break-all;
+    color: #333; max-height: 340px; overflow-y: auto;
+    background: #fafbfc; border: 1px solid #e4e8f0;
+    border-radius: 4px; padding: .55rem;
+  }
+  mark { background: #fff3b0; border-bottom: 2px solid #e0b800; color: #4a3800; border-radius: 2px; }
+
+  .common-list {
+    padding: .6rem 1.3rem .8rem; border-top: 1px solid #d0d8e8;
+    display: flex; flex-wrap: wrap; gap: .4rem; align-items: center;
+    background: #fafbfc;
+  }
+  .common-list .cl-label {
+    font-size: 0.68rem; color: #888; text-transform: uppercase;
+    letter-spacing: .06em; font-family: monospace; margin-right: .3rem;
+  }
+  .token-chip {
+    font-family: monospace; font-size: 0.7rem;
+    background: #eef4ff; border: 1px solid #b8ccee; color: #1e3d8a;
+    border-radius: 3px; padding: .1rem .42rem;
+    max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* Sección diff de UNIX */
+  .diff-section { border-top: 1px solid #d0d8e8; }
+  .diff-toggle {
+    width: 100%; text-align: left; background: #f0f4fa;
+    border: none; cursor: pointer; padding: .6rem 1.3rem;
+    font-size: 0.78rem; color: #1a56a0; font-family: monospace;
+    border-top: 1px solid #d0d8e8;
+  }
+  .diff-toggle:hover { background: #e4ecf8; }
+  .diff-content {
+    display: none; padding: .8rem 1.3rem;
+    background: #fafbfc;
+  }
+  .diff-content.open { display: block; }
+  .diff-content pre { max-height: 280px; font-size: 0.73rem; }
+
+  @media (max-width: 680px) {
+    .code-grid { grid-template-columns: 1fr; }
+    .code-pane:first-child { border-right: none; border-bottom: 1px solid #d0d8e8; }
+    header, .summary, .pairs { padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Detector de Plagio — Programas Python</h1>
+  <p>Generado: 2026-04-21 23:08 &nbsp;|&nbsp; Carpeta: dataset_python &nbsp;|&nbsp; Archivos analizados: 20</p>
+</header>
+
+<div class="summary">
+  <div class="stat"><div class="label">Pares comparados</div><div class="value">190</div></div>
+  <div class="stat"><div class="label">Pares reportados</div><div class="value">10</div></div>
+  <div class="stat"><div class="label">Mayor similitud (SA)</div><div class="value">100.0%</div></div>
+</div>
+
+<div class="pairs">
+<div class="pair-card">
+  <div class="pair-header">
+    <span class="rank">#1</span>
+    <span class="filenames">
+      <span title="dataset_python/prog_09_stack.py">prog_09_stack.py</span>
+      <span class="sep">↔</span>
+      <span title="dataset_python/prog_10_stack_v2.py">prog_10_stack_v2.py</span>
+    </span>
+    <span class="badge high">100.0% (tokens/SA)</span>
+  </div>
+
+  <!-- Métricas detalladas: tres variantes de similitud -->
+  <div class="metrics">
+    <span class="metric-item">Texto plano (difflib): <b>34.3%</b></span>
+    <span class="metric-item">Tokens (difflib): <b>100.0%</b></span>
+    <span class="metric-item">Tokens (Suffix Array): <b>100.0%</b></span>
+    <span class="metric-item">Subcadenas comunes: <b>1</b></span>
+  </div>
+
+  <!-- Código fuente en paralelo con líneas comunes resaltadas -->
+  <div class="code-grid">
+    <div class="code-pane">
+      <div class="pane-title">Archivo 1: prog_09_stack.py</div>
+      <pre># Stack data structure
+<mark>class Stack:</mark>
+<mark>    def __init__(self):</mark>
+<mark>        self.items = []</mark>
+
+<mark>    def push(self, item):</mark>
+<mark>        self.items.append(item)</mark>
+
+<mark>    def pop(self):</mark>
+<mark>        if not self.is_empty():</mark>
+<mark>            return self.items.pop()</mark>
+<mark>        return None</mark>
+
+<mark>    def peek(self):</mark>
+<mark>        if not self.is_empty():</mark>
+<mark>            return self.items[-1]</mark>
+<mark>        return None</mark>
+
+<mark>    def is_empty(self):</mark>
+<mark>        return len(self.items) == 0</mark>
+
+<mark>    def size(self):</mark>
+<mark>        return len(self.items)</mark>
+
+<mark>def main():</mark>
+<mark>    stack = Stack()</mark>
+<mark>    for val in [1, 2, 3, 4, 5]:</mark>
+<mark>        stack.push(val)</mark>
+<mark>    print(&quot;Size:&quot;, stack.size())</mark>
+<mark>    print(&quot;Top:&quot;, stack.peek())</mark>
+<mark>    while not stack.is_empty():</mark>
+<mark>        print(&quot;Popped:&quot;, stack.pop())</mark>
+
+<mark>if __name__ == &quot;__main__&quot;:</mark>
+<mark>    main()</mark></pre>
+    </div>
+    <div class="code-pane">
+      <div class="pane-title">Archivo 2: prog_10_stack_v2.py</div>
+      <pre># Pila (estructura de datos)
+<mark>class Pila:</mark>
+<mark>    def __init__(self):</mark>
+<mark>        self.elementos = []</mark>
+
+<mark>    def apilar(self, elemento):</mark>
+<mark>        self.elementos.append(elemento)</mark>
+
+<mark>    def desapilar(self):</mark>
+<mark>        if not self.esta_vacia():</mark>
+<mark>            return self.elementos.pop()</mark>
+<mark>        return None</mark>
+
+<mark>    def tope(self):</mark>
+<mark>        if not self.esta_vacia():</mark>
+<mark>            return self.elementos[-1]</mark>
+<mark>        return None</mark>
+
+<mark>    def esta_vacia(self):</mark>
+<mark>        return len(self.elementos) == 0</mark>
+
+<mark>    def tamano(self):</mark>
+<mark>        return len(self.elementos)</mark>
+
+<mark>def ejecutar():</mark>
+<mark>    pila = Pila()</mark>
+<mark>    for val in [1, 2, 3, 4, 5]:</mark>
+<mark>        pila.apilar(val)</mark>
+<mark>    print(&quot;Tamaño:&quot;, pila.tamano())</mark>
+<mark>    print(&quot;Tope:&quot;, pila.tope())</mark>
+<mark>    while not pila.esta_vacia():</mark>
+<mark>        print(&quot;Desapilado:&quot;, pila.desapilar())</mark>
+
+<mark>if __name__ == &quot;__main__&quot;:</mark>
+<mark>    ejecutar()</mark></pre>
+    </div>
+  </div>
+
+  <!-- Fragmentos de tokens comunes detectados por Suffix Array -->
+  <div class="common-list">
+    <span class="cl-label">Subcadenas comunes (1):</span>
+    <span class="token-chip" title="class ID : def ID ( ID…">class ID : def ID ( ID…</span>
+  </div>
+
+  <!-- Salida de diff -u de UNIX (colapsable) -->
+  <div class="diff-section">
+    <button class="diff-toggle">▼ Ver diff -u de UNIX</button>
+    <div class="diff-content">
+      <pre><span style="color:#555;font-style:italic">--- dataset_python/prog_09_stack.py	2026-04-21 22:53:12</span>
+<span style="color:#555;font-style:italic">+++ dataset_python/prog_10_stack_v2.py	2026-04-21 22:53:12</span>
+<span style="background:#e8f0fe;color:#1a3a8a;font-weight:bold">@@ -1,35 +1,35 @@</span>
+<span style="background:#fde8eb;color:#8b0014">-# Stack data structure</span>
+<span style="background:#fde8eb;color:#8b0014">-class Stack:</span>
+<span style="background:#e6f4ea;color:#1a5e30">+# Pila (estructura de datos)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+class Pila:</span>
+<span style="color:#444">     def __init__(self):</span>
+<span style="background:#fde8eb;color:#8b0014">-        self.items = []</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        self.elementos = []</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-    def push(self, item):</span>
+<span style="background:#fde8eb;color:#8b0014">-        self.items.append(item)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    def apilar(self, elemento):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        self.elementos.append(elemento)</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-    def pop(self):</span>
+<span style="background:#fde8eb;color:#8b0014">-        if not self.is_empty():</span>
+<span style="background:#fde8eb;color:#8b0014">-            return self.items.pop()</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    def desapilar(self):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        if not self.esta_vacia():</span>
+<span style="background:#e6f4ea;color:#1a5e30">+            return self.elementos.pop()</span>
+<span style="color:#444">         return None</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-    def peek(self):</span>
+<span style="background:#fde8eb;color:#8b0014">-        if not self.is_empty():</span>
+<span style="background:#fde8eb;color:#8b0014">-            return self.items[-1]</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    def tope(self):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        if not self.esta_vacia():</span>
+<span style="background:#e6f4ea;color:#1a5e30">+            return self.elementos[-1]</span>
+<span style="color:#444">         return None</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-    def is_empty(self):</span>
+<span style="background:#fde8eb;color:#8b0014">-        return len(self.items) == 0</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    def esta_vacia(self):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        return len(self.elementos) == 0</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-    def size(self):</span>
+<span style="background:#fde8eb;color:#8b0014">-        return len(self.items)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    def tamano(self):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        return len(self.elementos)</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-def main():</span>
+<span style="background:#fde8eb;color:#8b0014">-    stack = Stack()</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def ejecutar():</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    pila = Pila()</span>
+<span style="color:#444">     for val in [1, 2, 3, 4, 5]:</span>
+<span style="background:#fde8eb;color:#8b0014">-        stack.push(val)</span>
+<span style="background:#fde8eb;color:#8b0014">-    print(&quot;Size:&quot;, stack.size())</span>
+<span style="background:#fde8eb;color:#8b0014">-    print(&quot;Top:&quot;, stack.peek())</span>
+<span style="background:#fde8eb;color:#8b0014">-    while not stack.is_empty():</span>
+<span style="background:#fde8eb;color:#8b0014">-        print(&quot;Popped:&quot;, stack.pop())</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        pila.apilar(val)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    print(&quot;Tamaño:&quot;, pila.tamano())</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    print(&quot;Tope:&quot;, pila.tope())</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    while not pila.esta_vacia():</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        print(&quot;Desapilado:&quot;, pila.desapilar())</span>
+<span style="color:#444"> </span>
+<span style="color:#444"> if __name__ == &quot;__main__&quot;:</span>
+<span style="background:#fde8eb;color:#8b0014">-    main()</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    ejecutar()</span></pre>
+    </div>
+  </div>
+</div>
+
+<div class="pair-card">
+  <div class="pair-header">
+    <span class="rank">#2</span>
+    <span class="filenames">
+      <span title="dataset_python/prog_19_merge_sort.py">prog_19_merge_sort.py</span>
+      <span class="sep">↔</span>
+      <span title="dataset_python/prog_20_merge_sort_v2.py">prog_20_merge_sort_v2.py</span>
+    </span>
+    <span class="badge high">91.1% (tokens/SA)</span>
+  </div>
+
+  <!-- Métricas detalladas: tres variantes de similitud -->
+  <div class="metrics">
+    <span class="metric-item">Texto plano (difflib): <b>32.3%</b></span>
+    <span class="metric-item">Tokens (difflib): <b>100.0%</b></span>
+    <span class="metric-item">Tokens (Suffix Array): <b>91.1%</b></span>
+    <span class="metric-item">Subcadenas comunes: <b>1</b></span>
+  </div>
+
+  <!-- Código fuente en paralelo con líneas comunes resaltadas -->
+  <div class="code-grid">
+    <div class="code-pane">
+      <div class="pane-title">Archivo 1: prog_19_merge_sort.py</div>
+      <pre># Merge sort implementation
+def merge(left, right):
+    result = []
+    i = j = 0
+<mark>    while i &lt; len(left) and j &lt; len(right):</mark>
+<mark>        if left[i] &lt;= right[j]:</mark>
+<mark>            result.append(left[i])</mark>
+<mark>            i += 1</mark>
+<mark>        else:</mark>
+<mark>            result.append(right[j])</mark>
+<mark>            j += 1</mark>
+<mark>    result.extend(left[i:])</mark>
+<mark>    result.extend(right[j:])</mark>
+<mark>    return result</mark>
+
+<mark>def merge_sort(arr):</mark>
+<mark>    if len(arr) &lt;= 1:</mark>
+<mark>        return arr</mark>
+<mark>    mid = len(arr) // 2</mark>
+<mark>    left = merge_sort(arr[:mid])</mark>
+<mark>    right = merge_sort(arr[mid:])</mark>
+<mark>    return merge(left, right)</mark>
+
+<mark>def main():</mark>
+<mark>    data = [38, 27, 43, 3, 9, 82, 10]</mark>
+<mark>    print(&quot;Original:&quot;, data)</mark>
+<mark>    sorted_data = merge_sort(data)</mark>
+<mark>    print(&quot;Sorted:&quot;, sorted_data)</mark>
+
+<mark>if __name__ == &quot;__main__&quot;:</mark>
+<mark>    main()</mark></pre>
+    </div>
+    <div class="code-pane">
+      <div class="pane-title">Archivo 2: prog_20_merge_sort_v2.py</div>
+      <pre># Ordenamiento por mezcla
+def combinar(izquierda, derecha):
+    resultado = []
+    i = j = 0
+<mark>    while i &lt; len(izquierda) and j &lt; len(derecha):</mark>
+<mark>        if izquierda[i] &lt;= derecha[j]:</mark>
+<mark>            resultado.append(izquierda[i])</mark>
+<mark>            i += 1</mark>
+<mark>        else:</mark>
+<mark>            resultado.append(derecha[j])</mark>
+<mark>            j += 1</mark>
+<mark>    resultado.extend(izquierda[i:])</mark>
+<mark>    resultado.extend(derecha[j:])</mark>
+<mark>    return resultado</mark>
+
+<mark>def ordenamiento_mezcla(arr):</mark>
+<mark>    if len(arr) &lt;= 1:</mark>
+<mark>        return arr</mark>
+<mark>    medio = len(arr) // 2</mark>
+<mark>    izquierda = ordenamiento_mezcla(arr[:medio])</mark>
+<mark>    derecha = ordenamiento_mezcla(arr[medio:])</mark>
+<mark>    return combinar(izquierda, derecha)</mark>
+
+<mark>def principal():</mark>
+<mark>    datos = [38, 27, 43, 3, 9, 82, 10]</mark>
+<mark>    print(&quot;Original:&quot;, datos)</mark>
+<mark>    ordenados = ordenamiento_mezcla(datos)</mark>
+<mark>    print(&quot;Ordenado:&quot;, ordenados)</mark>
+
+<mark>if __name__ == &quot;__main__&quot;:</mark>
+<mark>    principal()</mark></pre>
+    </div>
+  </div>
+
+  <!-- Fragmentos de tokens comunes detectados por Suffix Array -->
+  <div class="common-list">
+    <span class="cl-label">Subcadenas comunes (1):</span>
+    <span class="token-chip" title="while ID &lt; ID ( ID )…">while ID &lt; ID ( ID )…</span>
+  </div>
+
+  <!-- Salida de diff -u de UNIX (colapsable) -->
+  <div class="diff-section">
+    <button class="diff-toggle">▼ Ver diff -u de UNIX</button>
+    <div class="diff-content">
+      <pre><span style="color:#555;font-style:italic">--- dataset_python/prog_19_merge_sort.py	2026-04-21 22:53:12</span>
+<span style="color:#555;font-style:italic">+++ dataset_python/prog_20_merge_sort_v2.py	2026-04-21 22:53:12</span>
+<span style="background:#e8f0fe;color:#1a3a8a;font-weight:bold">@@ -1,31 +1,31 @@</span>
+<span style="background:#fde8eb;color:#8b0014">-# Merge sort implementation</span>
+<span style="background:#fde8eb;color:#8b0014">-def merge(left, right):</span>
+<span style="background:#fde8eb;color:#8b0014">-    result = []</span>
+<span style="background:#e6f4ea;color:#1a5e30">+# Ordenamiento por mezcla</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def combinar(izquierda, derecha):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    resultado = []</span>
+<span style="color:#444">     i = j = 0</span>
+<span style="background:#fde8eb;color:#8b0014">-    while i &lt; len(left) and j &lt; len(right):</span>
+<span style="background:#fde8eb;color:#8b0014">-        if left[i] &lt;= right[j]:</span>
+<span style="background:#fde8eb;color:#8b0014">-            result.append(left[i])</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    while i &lt; len(izquierda) and j &lt; len(derecha):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        if izquierda[i] &lt;= derecha[j]:</span>
+<span style="background:#e6f4ea;color:#1a5e30">+            resultado.append(izquierda[i])</span>
+<span style="color:#444">             i += 1</span>
+<span style="color:#444">         else:</span>
+<span style="background:#fde8eb;color:#8b0014">-            result.append(right[j])</span>
+<span style="background:#e6f4ea;color:#1a5e30">+            resultado.append(derecha[j])</span>
+<span style="color:#444">             j += 1</span>
+<span style="background:#fde8eb;color:#8b0014">-    result.extend(left[i:])</span>
+<span style="background:#fde8eb;color:#8b0014">-    result.extend(right[j:])</span>
+<span style="background:#fde8eb;color:#8b0014">-    return result</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    resultado.extend(izquierda[i:])</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    resultado.extend(derecha[j:])</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    return resultado</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-def merge_sort(arr):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def ordenamiento_mezcla(arr):</span>
+<span style="color:#444">     if len(arr) &lt;= 1:</span>
+<span style="color:#444">         return arr</span>
+<span style="background:#fde8eb;color:#8b0014">-    mid = len(arr) // 2</span>
+<span style="background:#fde8eb;color:#8b0014">-    left = merge_sort(arr[:mid])</span>
+<span style="background:#fde8eb;color:#8b0014">-    right = merge_sort(arr[mid:])</span>
+<span style="background:#fde8eb;color:#8b0014">-    return merge(left, right)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    medio = len(arr) // 2</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    izquierda = ordenamiento_mezcla(arr[:medio])</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    derecha = ordenamiento_mezcla(arr[medio:])</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    return combinar(izquierda, derecha)</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-def main():</span>
+<span style="background:#fde8eb;color:#8b0014">-    data = [38, 27, 43, 3, 9, 82, 10]</span>
+<span style="background:#fde8eb;color:#8b0014">-    print(&quot;Original:&quot;, data)</span>
+<span style="background:#fde8eb;color:#8b0014">-    sorted_data = merge_sort(data)</span>
+<span style="background:#fde8eb;color:#8b0014">-    print(&quot;Sorted:&quot;, sorted_data)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def principal():</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    datos = [38, 27, 43, 3, 9, 82, 10]</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    print(&quot;Original:&quot;, datos)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    ordenados = ordenamiento_mezcla(datos)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    print(&quot;Ordenado:&quot;, ordenados)</span>
+<span style="color:#444"> </span>
+<span style="color:#444"> if __name__ == &quot;__main__&quot;:</span>
+<span style="background:#fde8eb;color:#8b0014">-    main()</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    principal()</span></pre>
+    </div>
+  </div>
+</div>
+
+<div class="pair-card">
+  <div class="pair-header">
+    <span class="rank">#3</span>
+    <span class="filenames">
+      <span title="dataset_python/prog_04_fibonacci.py">prog_04_fibonacci.py</span>
+      <span class="sep">↔</span>
+      <span title="dataset_python/prog_05_fibonacci_v2.py">prog_05_fibonacci_v2.py</span>
+    </span>
+    <span class="badge high">90.7% (tokens/SA)</span>
+  </div>
+
+  <!-- Métricas detalladas: tres variantes de similitud -->
+  <div class="metrics">
+    <span class="metric-item">Texto plano (difflib): <b>18.8%</b></span>
+    <span class="metric-item">Tokens (difflib): <b>100.0%</b></span>
+    <span class="metric-item">Tokens (Suffix Array): <b>90.7%</b></span>
+    <span class="metric-item">Subcadenas comunes: <b>1</b></span>
+  </div>
+
+  <!-- Código fuente en paralelo con líneas comunes resaltadas -->
+  <div class="code-grid">
+    <div class="code-pane">
+      <div class="pane-title">Archivo 1: prog_04_fibonacci.py</div>
+      <pre># Fibonacci sequence generator
+def fibonacci(n):
+<mark>    sequence = []</mark>
+<mark>    a, b = 0, 1</mark>
+<mark>    for _ in range(n):</mark>
+<mark>        sequence.append(a)</mark>
+<mark>        a, b = b, a + b</mark>
+<mark>    return sequence</mark>
+
+<mark>def print_fibonacci(limit):</mark>
+<mark>    result = fibonacci(limit)</mark>
+<mark>    for i, val in enumerate(result):</mark>
+<mark>        print(f&quot;F({i}) = {val}&quot;)</mark>
+
+<mark>if __name__ == &quot;__main__&quot;:</mark>
+<mark>    print_fibonacci(15)</mark></pre>
+    </div>
+    <div class="code-pane">
+      <div class="pane-title">Archivo 2: prog_05_fibonacci_v2.py</div>
+      <pre># Secuencia de Fibonacci
+def calcular_fibonacci(cantidad):
+<mark>    serie = []</mark>
+<mark>    primero, segundo = 0, 1</mark>
+<mark>    for _ in range(cantidad):</mark>
+<mark>        serie.append(primero)</mark>
+<mark>        primero, segundo = segundo, primero + segundo</mark>
+<mark>    return serie</mark>
+
+<mark>def mostrar_fibonacci(limite):</mark>
+<mark>    numeros = calcular_fibonacci(limite)</mark>
+<mark>    for i, valor in enumerate(numeros):</mark>
+<mark>        print(f&quot;F({i}) = {valor}&quot;)</mark>
+
+<mark>if __name__ == &quot;__main__&quot;:</mark>
+<mark>    mostrar_fibonacci(15)</mark></pre>
+    </div>
+  </div>
+
+  <!-- Fragmentos de tokens comunes detectados por Suffix Array -->
+  <div class="common-list">
+    <span class="cl-label">Subcadenas comunes (1):</span>
+    <span class="token-chip" title="[ ] ID , ID = NUM…">[ ] ID , ID = NUM…</span>
+  </div>
+
+  <!-- Salida de diff -u de UNIX (colapsable) -->
+  <div class="diff-section">
+    <button class="diff-toggle">▼ Ver diff -u de UNIX</button>
+    <div class="diff-content">
+      <pre><span style="color:#555;font-style:italic">--- dataset_python/prog_04_fibonacci.py	2026-04-21 22:53:12</span>
+<span style="color:#555;font-style:italic">+++ dataset_python/prog_05_fibonacci_v2.py	2026-04-21 22:53:12</span>
+<span style="background:#e8f0fe;color:#1a3a8a;font-weight:bold">@@ -1,16 +1,16 @@</span>
+<span style="background:#fde8eb;color:#8b0014">-# Fibonacci sequence generator</span>
+<span style="background:#fde8eb;color:#8b0014">-def fibonacci(n):</span>
+<span style="background:#fde8eb;color:#8b0014">-    sequence = []</span>
+<span style="background:#fde8eb;color:#8b0014">-    a, b = 0, 1</span>
+<span style="background:#fde8eb;color:#8b0014">-    for _ in range(n):</span>
+<span style="background:#fde8eb;color:#8b0014">-        sequence.append(a)</span>
+<span style="background:#fde8eb;color:#8b0014">-        a, b = b, a + b</span>
+<span style="background:#fde8eb;color:#8b0014">-    return sequence</span>
+<span style="background:#e6f4ea;color:#1a5e30">+# Secuencia de Fibonacci</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def calcular_fibonacci(cantidad):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    serie = []</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    primero, segundo = 0, 1</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    for _ in range(cantidad):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        serie.append(primero)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        primero, segundo = segundo, primero + segundo</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    return serie</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-def print_fibonacci(limit):</span>
+<span style="background:#fde8eb;color:#8b0014">-    result = fibonacci(limit)</span>
+<span style="background:#fde8eb;color:#8b0014">-    for i, val in enumerate(result):</span>
+<span style="background:#fde8eb;color:#8b0014">-        print(f&quot;F({i}) = {val}&quot;)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def mostrar_fibonacci(limite):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    numeros = calcular_fibonacci(limite)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    for i, valor in enumerate(numeros):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        print(f&quot;F({i}) = {valor}&quot;)</span>
+<span style="color:#444"> </span>
+<span style="color:#444"> if __name__ == &quot;__main__&quot;:</span>
+<span style="background:#fde8eb;color:#8b0014">-    print_fibonacci(15)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    mostrar_fibonacci(15)</span></pre>
+    </div>
+  </div>
+</div>
+
+<div class="pair-card">
+  <div class="pair-header">
+    <span class="rank">#4</span>
+    <span class="filenames">
+      <span title="dataset_python/prog_13_calculator.py">prog_13_calculator.py</span>
+      <span class="sep">↔</span>
+      <span title="dataset_python/prog_14_calculator_v2.py">prog_14_calculator_v2.py</span>
+    </span>
+    <span class="badge high">89.3% (tokens/SA)</span>
+  </div>
+
+  <!-- Métricas detalladas: tres variantes de similitud -->
+  <div class="metrics">
+    <span class="metric-item">Texto plano (difflib): <b>37.1%</b></span>
+    <span class="metric-item">Tokens (difflib): <b>99.5%</b></span>
+    <span class="metric-item">Tokens (Suffix Array): <b>89.3%</b></span>
+    <span class="metric-item">Subcadenas comunes: <b>2</b></span>
+  </div>
+
+  <!-- Código fuente en paralelo con líneas comunes resaltadas -->
+  <div class="code-grid">
+    <div class="code-pane">
+      <div class="pane-title">Archivo 1: prog_13_calculator.py</div>
+      <pre># Simple calculator
+def add(a, b):
+<mark>    return a + b</mark>
+
+<mark>def subtract(a, b):</mark>
+<mark>    return a - b</mark>
+
+<mark>def multiply(a, b):</mark>
+<mark>    return a * b</mark>
+
+<mark>def divide(a, b):</mark>
+<mark>    if b == 0:</mark>
+<mark>        raise ValueError(&quot;Cannot divide by zero&quot;)</mark>
+<mark>    return a / b</mark>
+
+<mark>def calculator(num1, operator, num2):</mark>
+<mark>    if operator == &quot;+&quot;:</mark>
+<mark>        return add(num1, num2)</mark>
+<mark>    elif operator == &quot;-&quot;:</mark>
+<mark>        return subtract(num1, num2)</mark>
+<mark>    elif operator == &quot;*&quot;:</mark>
+<mark>        return multiply(num1, num2)</mark>
+<mark>    elif operator == &quot;/&quot;:</mark>
+<mark>        return divide(num1, num2)</mark>
+<mark>    else:</mark>
+<mark>        raise ValueError(f&quot;Unknown operator: {operator}&quot;)</mark>
+
+def main():
+<mark>    operations = [(10, &quot;+&quot;, 5), (10, &quot;-&quot;, 3), (4, &quot;*&quot;, 7), (20, &quot;/&quot;, 4)]</mark>
+<mark>    for a, op, b in operations:</mark>
+<mark>        result = calculator(a, op, b)</mark>
+<mark>        print(f&quot;{a} {op} {b} = {result}&quot;)</mark>
+
+<mark>if __name__ == &quot;__main__&quot;:</mark>
+<mark>    main()</mark></pre>
+    </div>
+    <div class="code-pane">
+      <div class="pane-title">Archivo 2: prog_14_calculator_v2.py</div>
+      <pre># Calculadora básica
+def sumar(a, b):
+<mark>    return a + b</mark>
+
+<mark>def restar(a, b):</mark>
+<mark>    return a - b</mark>
+
+<mark>def multiplicar(a, b):</mark>
+<mark>    return a * b</mark>
+
+<mark>def dividir(a, b):</mark>
+<mark>    if b == 0:</mark>
+<mark>        raise ValueError(&quot;No se puede dividir entre cero&quot;)</mark>
+<mark>    return a / b</mark>
+
+<mark>def calculadora(num1, operador, num2):</mark>
+<mark>    if operador == &quot;+&quot;:</mark>
+<mark>        return sumar(num1, num2)</mark>
+<mark>    elif operador == &quot;-&quot;:</mark>
+<mark>        return restar(num1, num2)</mark>
+<mark>    elif operador == &quot;*&quot;:</mark>
+<mark>        return multiplicar(num1, num2)</mark>
+<mark>    elif operador == &quot;/&quot;:</mark>
+<mark>        return dividir(num1, num2)</mark>
+<mark>    else:</mark>
+<mark>        raise ValueError(f&quot;Operador desconocido: {operador}&quot;)</mark>
+
+def principal():
+<mark>    operaciones = [(10, &quot;+&quot;, 5), (10, &quot;-&quot;, 3), (4, &quot;*&quot;, 7), (20, &quot;/&quot;, 4)]</mark>
+<mark>    for a, op, b in operaciones:</mark>
+<mark>        resultado = calculadora(a, op, b)</mark>
+<mark>        print(f&quot;{a} {op} {b} = {resultado}&quot;)</mark>
+
+<mark>if __name__ == &quot;__main__&quot;:</mark>
+<mark>    principal()</mark></pre>
+    </div>
+  </div>
+
+  <!-- Fragmentos de tokens comunes detectados por Suffix Array -->
+  <div class="common-list">
+    <span class="cl-label">Subcadenas comunes (2):</span>
+    <span class="token-chip" title="+ ID def ID ( ID ,…">+ ID def ID ( ID ,…</span><span class="token-chip" title="[ ( NUM , STR , NUM…">[ ( NUM , STR , NUM…</span>
+  </div>
+
+  <!-- Salida de diff -u de UNIX (colapsable) -->
+  <div class="diff-section">
+    <button class="diff-toggle">▼ Ver diff -u de UNIX</button>
+    <div class="diff-content">
+      <pre><span style="color:#555;font-style:italic">--- dataset_python/prog_13_calculator.py	2026-04-21 22:53:12</span>
+<span style="color:#555;font-style:italic">+++ dataset_python/prog_14_calculator_v2.py	2026-04-21 22:53:12</span>
+<span style="background:#e8f0fe;color:#1a3a8a;font-weight:bold">@@ -1,35 +1,35 @@</span>
+<span style="background:#fde8eb;color:#8b0014">-# Simple calculator</span>
+<span style="background:#fde8eb;color:#8b0014">-def add(a, b):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+# Calculadora básica</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def sumar(a, b):</span>
+<span style="color:#444">     return a + b</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-def subtract(a, b):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def restar(a, b):</span>
+<span style="color:#444">     return a - b</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-def multiply(a, b):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def multiplicar(a, b):</span>
+<span style="color:#444">     return a * b</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-def divide(a, b):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def dividir(a, b):</span>
+<span style="color:#444">     if b == 0:</span>
+<span style="background:#fde8eb;color:#8b0014">-        raise ValueError(&quot;Cannot divide by zero&quot;)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        raise ValueError(&quot;No se puede dividir entre cero&quot;)</span>
+<span style="color:#444">     return a / b</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-def calculator(num1, operator, num2):</span>
+<span style="background:#fde8eb;color:#8b0014">-    if operator == &quot;+&quot;:</span>
+<span style="background:#fde8eb;color:#8b0014">-        return add(num1, num2)</span>
+<span style="background:#fde8eb;color:#8b0014">-    elif operator == &quot;-&quot;:</span>
+<span style="background:#fde8eb;color:#8b0014">-        return subtract(num1, num2)</span>
+<span style="background:#fde8eb;color:#8b0014">-    elif operator == &quot;*&quot;:</span>
+<span style="background:#fde8eb;color:#8b0014">-        return multiply(num1, num2)</span>
+<span style="background:#fde8eb;color:#8b0014">-    elif operator == &quot;/&quot;:</span>
+<span style="background:#fde8eb;color:#8b0014">-        return divide(num1, num2)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def calculadora(num1, operador, num2):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    if operador == &quot;+&quot;:</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        return sumar(num1, num2)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    elif operador == &quot;-&quot;:</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        return restar(num1, num2)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    elif operador == &quot;*&quot;:</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        return multiplicar(num1, num2)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    elif operador == &quot;/&quot;:</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        return dividir(num1, num2)</span>
+<span style="color:#444">     else:</span>
+<span style="background:#fde8eb;color:#8b0014">-        raise ValueError(f&quot;Unknown operator: {operator}&quot;)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        raise ValueError(f&quot;Operador desconocido: {operador}&quot;)</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-def main():</span>
+<span style="background:#fde8eb;color:#8b0014">-    operations = [(10, &quot;+&quot;, 5), (10, &quot;-&quot;, 3), (4, &quot;*&quot;, 7), (20, &quot;/&quot;, 4)]</span>
+<span style="background:#fde8eb;color:#8b0014">-    for a, op, b in operations:</span>
+<span style="background:#fde8eb;color:#8b0014">-        result = calculator(a, op, b)</span>
+<span style="background:#fde8eb;color:#8b0014">-        print(f&quot;{a} {op} {b} = {result}&quot;)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def principal():</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    operaciones = [(10, &quot;+&quot;, 5), (10, &quot;-&quot;, 3), (4, &quot;*&quot;, 7), (20, &quot;/&quot;, 4)]</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    for a, op, b in operaciones:</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        resultado = calculadora(a, op, b)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        print(f&quot;{a} {op} {b} = {resultado}&quot;)</span>
+<span style="color:#444"> </span>
+<span style="color:#444"> if __name__ == &quot;__main__&quot;:</span>
+<span style="background:#fde8eb;color:#8b0014">-    main()</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    principal()</span></pre>
+    </div>
+  </div>
+</div>
+
+<div class="pair-card">
+  <div class="pair-header">
+    <span class="rank">#5</span>
+    <span class="filenames">
+      <span title="dataset_python/prog_17_prime_sieve.py">prog_17_prime_sieve.py</span>
+      <span class="sep">↔</span>
+      <span title="dataset_python/prog_18_prime_sieve_v2.py">prog_18_prime_sieve_v2.py</span>
+    </span>
+    <span class="badge high">77.8% (tokens/SA)</span>
+  </div>
+
+  <!-- Métricas detalladas: tres variantes de similitud -->
+  <div class="metrics">
+    <span class="metric-item">Texto plano (difflib): <b>16.7%</b></span>
+    <span class="metric-item">Tokens (difflib): <b>98.5%</b></span>
+    <span class="metric-item">Tokens (Suffix Array): <b>77.8%</b></span>
+    <span class="metric-item">Subcadenas comunes: <b>2</b></span>
+  </div>
+
+  <!-- Código fuente en paralelo con líneas comunes resaltadas -->
+  <div class="code-grid">
+    <div class="code-pane">
+      <div class="pane-title">Archivo 1: prog_17_prime_sieve.py</div>
+      <pre># Sieve of Eratosthenes
+def sieve_of_eratosthenes(limit):
+<mark>    is_prime = [True] * (limit + 1)</mark>
+<mark>    is_prime[0] = is_prime[1] = False</mark>
+<mark>    for i in range(2, int(limit ** 0.5) + 1):</mark>
+<mark>        if is_prime[i]:</mark>
+<mark>            for j in range(i * i, limit + 1, i):</mark>
+<mark>                is_prime[j] = False</mark>
+<mark>    return [num for num, prime in enumerate(is_prime) if prime]</mark>
+
+<mark>def main():</mark>
+<mark>    limit = 100</mark>
+<mark>    primes = sieve_of_eratosthenes(limit)</mark>
+<mark>    print(f&quot;Primes up to {limit}: {primes}&quot;)</mark>
+<mark>    print(f&quot;Count: {len(primes)}&quot;)</mark>
+
+if __name__ == &quot;__main__&quot;:
+    main()</pre>
+    </div>
+    <div class="code-pane">
+      <div class="pane-title">Archivo 2: prog_18_prime_sieve_v2.py</div>
+      <pre># Criba de Eratóstenes
+def criba_eratostenes(limite):
+<mark>    es_primo = [True] * (limite + 1)</mark>
+<mark>    es_primo[0] = es_primo[1] = False</mark>
+<mark>    for i in range(2, int(limite ** 0.5) + 1):</mark>
+<mark>        if es_primo[i]:</mark>
+<mark>            for j in range(i * i, limite + 1, i):</mark>
+<mark>                es_primo[j] = False</mark>
+<mark>    return [num for num, primo in enumerate(es_primo) if primo]</mark>
+
+<mark>def principal():</mark>
+<mark>    limite = 100</mark>
+<mark>    primos = criba_eratostenes(limite)</mark>
+<mark>    print(f&quot;Primos hasta {limite}: {primos}&quot;)</mark>
+<mark>    print(f&quot;Cantidad: {len(primos)}&quot;)</mark>
+
+if __name__ == &quot;__main__&quot;:
+    principal()</pre>
+    </div>
+  </div>
+
+  <!-- Fragmentos de tokens comunes detectados por Suffix Array -->
+  <div class="common-list">
+    <span class="cl-label">Subcadenas comunes (2):</span>
+    <span class="token-chip" title="True ] * ( ID + NUM…">True ] * ( ID + NUM…</span><span class="token-chip" title=":  { ID } &quot; ) ID…">:  { ID } &quot; ) ID…</span>
+  </div>
+
+  <!-- Salida de diff -u de UNIX (colapsable) -->
+  <div class="diff-section">
+    <button class="diff-toggle">▼ Ver diff -u de UNIX</button>
+    <div class="diff-content">
+      <pre><span style="color:#555;font-style:italic">--- dataset_python/prog_17_prime_sieve.py	2026-04-21 22:53:12</span>
+<span style="color:#555;font-style:italic">+++ dataset_python/prog_18_prime_sieve_v2.py	2026-04-21 22:53:12</span>
+<span style="background:#e8f0fe;color:#1a3a8a;font-weight:bold">@@ -1,18 +1,18 @@</span>
+<span style="background:#fde8eb;color:#8b0014">-# Sieve of Eratosthenes</span>
+<span style="background:#fde8eb;color:#8b0014">-def sieve_of_eratosthenes(limit):</span>
+<span style="background:#fde8eb;color:#8b0014">-    is_prime = [True] * (limit + 1)</span>
+<span style="background:#fde8eb;color:#8b0014">-    is_prime[0] = is_prime[1] = False</span>
+<span style="background:#fde8eb;color:#8b0014">-    for i in range(2, int(limit ** 0.5) + 1):</span>
+<span style="background:#fde8eb;color:#8b0014">-        if is_prime[i]:</span>
+<span style="background:#fde8eb;color:#8b0014">-            for j in range(i * i, limit + 1, i):</span>
+<span style="background:#fde8eb;color:#8b0014">-                is_prime[j] = False</span>
+<span style="background:#fde8eb;color:#8b0014">-    return [num for num, prime in enumerate(is_prime) if prime]</span>
+<span style="background:#e6f4ea;color:#1a5e30">+# Criba de Eratóstenes</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def criba_eratostenes(limite):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    es_primo = [True] * (limite + 1)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    es_primo[0] = es_primo[1] = False</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    for i in range(2, int(limite ** 0.5) + 1):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        if es_primo[i]:</span>
+<span style="background:#e6f4ea;color:#1a5e30">+            for j in range(i * i, limite + 1, i):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+                es_primo[j] = False</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    return [num for num, primo in enumerate(es_primo) if primo]</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-def main():</span>
+<span style="background:#fde8eb;color:#8b0014">-    limit = 100</span>
+<span style="background:#fde8eb;color:#8b0014">-    primes = sieve_of_eratosthenes(limit)</span>
+<span style="background:#fde8eb;color:#8b0014">-    print(f&quot;Primes up to {limit}: {primes}&quot;)</span>
+<span style="background:#fde8eb;color:#8b0014">-    print(f&quot;Count: {len(primes)}&quot;)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def principal():</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    limite = 100</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    primos = criba_eratostenes(limite)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    print(f&quot;Primos hasta {limite}: {primos}&quot;)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    print(f&quot;Cantidad: {len(primos)}&quot;)</span>
+<span style="color:#444"> </span>
+<span style="color:#444"> if __name__ == &quot;__main__&quot;:</span>
+<span style="background:#fde8eb;color:#8b0014">-    main()</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    principal()</span></pre>
+    </div>
+  </div>
+</div>
+
+<div class="pair-card">
+  <div class="pair-header">
+    <span class="rank">#6</span>
+    <span class="filenames">
+      <span title="dataset_python/prog_11_linked_list.py">prog_11_linked_list.py</span>
+      <span class="sep">↔</span>
+      <span title="dataset_python/prog_12_linked_list_v2.py">prog_12_linked_list_v2.py</span>
+    </span>
+    <span class="badge high">74.3% (tokens/SA)</span>
+  </div>
+
+  <!-- Métricas detalladas: tres variantes de similitud -->
+  <div class="metrics">
+    <span class="metric-item">Texto plano (difflib): <b>22.2%</b></span>
+    <span class="metric-item">Tokens (difflib): <b>100.0%</b></span>
+    <span class="metric-item">Tokens (Suffix Array): <b>74.3%</b></span>
+    <span class="metric-item">Subcadenas comunes: <b>1</b></span>
+  </div>
+
+  <!-- Código fuente en paralelo con líneas comunes resaltadas -->
+  <div class="code-grid">
+    <div class="code-pane">
+      <div class="pane-title">Archivo 1: prog_11_linked_list.py</div>
+      <pre># Singly linked list
+class Node:
+    def __init__(self, data):
+        self.data = data
+        self.next = None
+
+class LinkedList:
+    def __init__(self):
+        self.head = None
+
+    def append(self, data):
+        new_node = Node(data)
+<mark>        if self.head is None:</mark>
+<mark>            self.head = new_node</mark>
+<mark>            return</mark>
+<mark>        current = self.head</mark>
+<mark>        while current.next:</mark>
+<mark>            current = current.next</mark>
+<mark>        current.next = new_node</mark>
+
+<mark>    def display(self):</mark>
+<mark>        elements = []</mark>
+<mark>        current = self.head</mark>
+<mark>        while current:</mark>
+<mark>            elements.append(str(current.data))</mark>
+<mark>            current = current.next</mark>
+<mark>        print(&quot; -&gt; &quot;.join(elements))</mark>
+
+<mark>    def length(self):</mark>
+<mark>        count = 0</mark>
+<mark>        current = self.head</mark>
+<mark>        while current:</mark>
+<mark>            count += 1</mark>
+<mark>            current = current.next</mark>
+<mark>        return count</mark>
+
+<mark>def main():</mark>
+<mark>    ll = LinkedList()</mark>
+<mark>    for val in [10, 20, 30, 40, 50]:</mark>
+<mark>        ll.append(val)</mark>
+<mark>    ll.display()</mark>
+<mark>    print(&quot;Length:&quot;, ll.length())</mark>
+
+<mark>if __name__ == &quot;__main__&quot;:</mark>
+<mark>    main()</mark></pre>
+    </div>
+    <div class="code-pane">
+      <div class="pane-title">Archivo 2: prog_12_linked_list_v2.py</div>
+      <pre># Lista enlazada simple
+class Nodo:
+    def __init__(self, valor):
+        self.valor = valor
+        self.siguiente = None
+
+class ListaEnlazada:
+    def __init__(self):
+        self.cabeza = None
+
+    def agregar(self, valor):
+        nuevo_nodo = Nodo(valor)
+<mark>        if self.cabeza is None:</mark>
+<mark>            self.cabeza = nuevo_nodo</mark>
+<mark>            return</mark>
+<mark>        actual = self.cabeza</mark>
+<mark>        while actual.siguiente:</mark>
+<mark>            actual = actual.siguiente</mark>
+<mark>        actual.siguiente = nuevo_nodo</mark>
+
+<mark>    def mostrar(self):</mark>
+<mark>        elementos = []</mark>
+<mark>        actual = self.cabeza</mark>
+<mark>        while actual:</mark>
+<mark>            elementos.append(str(actual.valor))</mark>
+<mark>            actual = actual.siguiente</mark>
+<mark>        print(&quot; -&gt; &quot;.join(elementos))</mark>
+
+<mark>    def longitud(self):</mark>
+<mark>        contador = 0</mark>
+<mark>        actual = self.cabeza</mark>
+<mark>        while actual:</mark>
+<mark>            contador += 1</mark>
+<mark>            actual = actual.siguiente</mark>
+<mark>        return contador</mark>
+
+<mark>def ejecutar():</mark>
+<mark>    lista = ListaEnlazada()</mark>
+<mark>    for val in [10, 20, 30, 40, 50]:</mark>
+<mark>        lista.agregar(val)</mark>
+<mark>    lista.mostrar()</mark>
+<mark>    print(&quot;Longitud:&quot;, lista.longitud())</mark>
+
+<mark>if __name__ == &quot;__main__&quot;:</mark>
+<mark>    ejecutar()</mark></pre>
+    </div>
+  </div>
+
+  <!-- Fragmentos de tokens comunes detectados por Suffix Array -->
+  <div class="common-list">
+    <span class="cl-label">Subcadenas comunes (1):</span>
+    <span class="token-chip" title="is None : ID . ID =…">is None : ID . ID =…</span>
+  </div>
+
+  <!-- Salida de diff -u de UNIX (colapsable) -->
+  <div class="diff-section">
+    <button class="diff-toggle">▼ Ver diff -u de UNIX</button>
+    <div class="diff-content">
+      <pre><span style="color:#555;font-style:italic">--- dataset_python/prog_11_linked_list.py	2026-04-21 22:53:12</span>
+<span style="color:#555;font-style:italic">+++ dataset_python/prog_12_linked_list_v2.py	2026-04-21 22:53:12</span>
+<span style="background:#e8f0fe;color:#1a3a8a;font-weight:bold">@@ -1,45 +1,45 @@</span>
+<span style="background:#fde8eb;color:#8b0014">-# Singly linked list</span>
+<span style="background:#fde8eb;color:#8b0014">-class Node:</span>
+<span style="background:#fde8eb;color:#8b0014">-    def __init__(self, data):</span>
+<span style="background:#fde8eb;color:#8b0014">-        self.data = data</span>
+<span style="background:#fde8eb;color:#8b0014">-        self.next = None</span>
+<span style="background:#e6f4ea;color:#1a5e30">+# Lista enlazada simple</span>
+<span style="background:#e6f4ea;color:#1a5e30">+class Nodo:</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    def __init__(self, valor):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        self.valor = valor</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        self.siguiente = None</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-class LinkedList:</span>
+<span style="background:#e6f4ea;color:#1a5e30">+class ListaEnlazada:</span>
+<span style="color:#444">     def __init__(self):</span>
+<span style="background:#fde8eb;color:#8b0014">-        self.head = None</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        self.cabeza = None</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-    def append(self, data):</span>
+<span style="background:#fde8eb;color:#8b0014">-        new_node = Node(data)</span>
+<span style="background:#fde8eb;color:#8b0014">-        if self.head is None:</span>
+<span style="background:#fde8eb;color:#8b0014">-            self.head = new_node</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    def agregar(self, valor):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        nuevo_nodo = Nodo(valor)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        if self.cabeza is None:</span>
+<span style="background:#e6f4ea;color:#1a5e30">+            self.cabeza = nuevo_nodo</span>
+<span style="color:#444">             return</span>
+<span style="background:#fde8eb;color:#8b0014">-        current = self.head</span>
+<span style="background:#fde8eb;color:#8b0014">-        while current.next:</span>
+<span style="background:#fde8eb;color:#8b0014">-            current = current.next</span>
+<span style="background:#fde8eb;color:#8b0014">-        current.next = new_node</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        actual = self.cabeza</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        while actual.siguiente:</span>
+<span style="background:#e6f4ea;color:#1a5e30">+            actual = actual.siguiente</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        actual.siguiente = nuevo_nodo</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-    def display(self):</span>
+<span style="background:#fde8eb;color:#8b0014">-        elements = []</span>
+<span style="background:#fde8eb;color:#8b0014">-        current = self.head</span>
+<span style="background:#fde8eb;color:#8b0014">-        while current:</span>
+<span style="background:#fde8eb;color:#8b0014">-            elements.append(str(current.data))</span>
+<span style="background:#fde8eb;color:#8b0014">-            current = current.next</span>
+<span style="background:#fde8eb;color:#8b0014">-        print(&quot; -&gt; &quot;.join(elements))</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    def mostrar(self):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        elementos = []</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        actual = self.cabeza</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        while actual:</span>
+<span style="background:#e6f4ea;color:#1a5e30">+            elementos.append(str(actual.valor))</span>
+<span style="background:#e6f4ea;color:#1a5e30">+            actual = actual.siguiente</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        print(&quot; -&gt; &quot;.join(elementos))</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-    def length(self):</span>
+<span style="background:#fde8eb;color:#8b0014">-        count = 0</span>
+<span style="background:#fde8eb;color:#8b0014">-        current = self.head</span>
+<span style="background:#fde8eb;color:#8b0014">-        while current:</span>
+<span style="background:#fde8eb;color:#8b0014">-            count += 1</span>
+<span style="background:#fde8eb;color:#8b0014">-            current = current.next</span>
+<span style="background:#fde8eb;color:#8b0014">-        return count</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    def longitud(self):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        contador = 0</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        actual = self.cabeza</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        while actual:</span>
+<span style="background:#e6f4ea;color:#1a5e30">+            contador += 1</span>
+<span style="background:#e6f4ea;color:#1a5e30">+            actual = actual.siguiente</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        return contador</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-def main():</span>
+<span style="background:#fde8eb;color:#8b0014">-    ll = LinkedList()</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def ejecutar():</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    lista = ListaEnlazada()</span>
+<span style="color:#444">     for val in [10, 20, 30, 40, 50]:</span>
+<span style="background:#fde8eb;color:#8b0014">-        ll.append(val)</span>
+<span style="background:#fde8eb;color:#8b0014">-    ll.display()</span>
+<span style="background:#fde8eb;color:#8b0014">-    print(&quot;Length:&quot;, ll.length())</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        lista.agregar(val)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    lista.mostrar()</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    print(&quot;Longitud:&quot;, lista.longitud())</span>
+<span style="color:#444"> </span>
+<span style="color:#444"> if __name__ == &quot;__main__&quot;:</span>
+<span style="background:#fde8eb;color:#8b0014">-    main()</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    ejecutar()</span></pre>
+    </div>
+  </div>
+</div>
+
+<div class="pair-card">
+  <div class="pair-header">
+    <span class="rank">#7</span>
+    <span class="filenames">
+      <span title="dataset_python/prog_01_bubble_sort.py">prog_01_bubble_sort.py</span>
+      <span class="sep">↔</span>
+      <span title="dataset_python/prog_02_bubble_sort_v2.py">prog_02_bubble_sort_v2.py</span>
+    </span>
+    <span class="badge high">67.5% (tokens/SA)</span>
+  </div>
+
+  <!-- Métricas detalladas: tres variantes de similitud -->
+  <div class="metrics">
+    <span class="metric-item">Texto plano (difflib): <b>29.4%</b></span>
+    <span class="metric-item">Tokens (difflib): <b>100.0%</b></span>
+    <span class="metric-item">Tokens (Suffix Array): <b>67.5%</b></span>
+    <span class="metric-item">Subcadenas comunes: <b>1</b></span>
+  </div>
+
+  <!-- Código fuente en paralelo con líneas comunes resaltadas -->
+  <div class="code-grid">
+    <div class="code-pane">
+      <div class="pane-title">Archivo 1: prog_01_bubble_sort.py</div>
+      <pre># Bubble Sort implementation
+def bubble_sort(arr):
+    n = len(arr)
+    for i in range(n):
+        for j in range(0, n - i - 1):
+<mark>            if arr[j] &gt; arr[j + 1]:</mark>
+<mark>                arr[j], arr[j + 1] = arr[j + 1], arr[j]</mark>
+<mark>    return arr</mark>
+
+<mark>def main():</mark>
+<mark>    data = [64, 34, 25, 12, 22, 11, 90]</mark>
+<mark>    print(&quot;Original:&quot;, data)</mark>
+<mark>    sorted_data = bubble_sort(data)</mark>
+<mark>    print(&quot;Sorted:&quot;, sorted_data)</mark>
+
+<mark>if __name__ == &quot;__main__&quot;:</mark>
+<mark>    main()</mark></pre>
+    </div>
+    <div class="code-pane">
+      <div class="pane-title">Archivo 2: prog_02_bubble_sort_v2.py</div>
+      <pre># Ordenamiento de burbuja
+def ordenamiento_burbuja(lista):
+    n = len(lista)
+    for i in range(n):
+        for j in range(0, n - i - 1):
+<mark>            if lista[j] &gt; lista[j + 1]:</mark>
+<mark>                lista[j], lista[j + 1] = lista[j + 1], lista[j]</mark>
+<mark>    return lista</mark>
+
+<mark>def ejecutar():</mark>
+<mark>    numeros = [64, 34, 25, 12, 22, 11, 90]</mark>
+<mark>    print(&quot;Sin ordenar:&quot;, numeros)</mark>
+<mark>    resultado = ordenamiento_burbuja(numeros)</mark>
+<mark>    print(&quot;Ordenado:&quot;, resultado)</mark>
+
+<mark>if __name__ == &quot;__main__&quot;:</mark>
+<mark>    ejecutar()</mark></pre>
+    </div>
+  </div>
+
+  <!-- Fragmentos de tokens comunes detectados por Suffix Array -->
+  <div class="common-list">
+    <span class="cl-label">Subcadenas comunes (1):</span>
+    <span class="token-chip" title="&gt; ID [ ID + NUM ]…">&gt; ID [ ID + NUM ]…</span>
+  </div>
+
+  <!-- Salida de diff -u de UNIX (colapsable) -->
+  <div class="diff-section">
+    <button class="diff-toggle">▼ Ver diff -u de UNIX</button>
+    <div class="diff-content">
+      <pre><span style="color:#555;font-style:italic">--- dataset_python/prog_01_bubble_sort.py	2026-04-21 22:53:12</span>
+<span style="color:#555;font-style:italic">+++ dataset_python/prog_02_bubble_sort_v2.py	2026-04-21 22:53:12</span>
+<span style="background:#e8f0fe;color:#1a3a8a;font-weight:bold">@@ -1,17 +1,17 @@</span>
+<span style="background:#fde8eb;color:#8b0014">-# Bubble Sort implementation</span>
+<span style="background:#fde8eb;color:#8b0014">-def bubble_sort(arr):</span>
+<span style="background:#fde8eb;color:#8b0014">-    n = len(arr)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+# Ordenamiento de burbuja</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def ordenamiento_burbuja(lista):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    n = len(lista)</span>
+<span style="color:#444">     for i in range(n):</span>
+<span style="color:#444">         for j in range(0, n - i - 1):</span>
+<span style="background:#fde8eb;color:#8b0014">-            if arr[j] &gt; arr[j + 1]:</span>
+<span style="background:#fde8eb;color:#8b0014">-                arr[j], arr[j + 1] = arr[j + 1], arr[j]</span>
+<span style="background:#fde8eb;color:#8b0014">-    return arr</span>
+<span style="background:#e6f4ea;color:#1a5e30">+            if lista[j] &gt; lista[j + 1]:</span>
+<span style="background:#e6f4ea;color:#1a5e30">+                lista[j], lista[j + 1] = lista[j + 1], lista[j]</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    return lista</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-def main():</span>
+<span style="background:#fde8eb;color:#8b0014">-    data = [64, 34, 25, 12, 22, 11, 90]</span>
+<span style="background:#fde8eb;color:#8b0014">-    print(&quot;Original:&quot;, data)</span>
+<span style="background:#fde8eb;color:#8b0014">-    sorted_data = bubble_sort(data)</span>
+<span style="background:#fde8eb;color:#8b0014">-    print(&quot;Sorted:&quot;, sorted_data)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def ejecutar():</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    numeros = [64, 34, 25, 12, 22, 11, 90]</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    print(&quot;Sin ordenar:&quot;, numeros)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    resultado = ordenamiento_burbuja(numeros)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    print(&quot;Ordenado:&quot;, resultado)</span>
+<span style="color:#444"> </span>
+<span style="color:#444"> if __name__ == &quot;__main__&quot;:</span>
+<span style="background:#fde8eb;color:#8b0014">-    main()</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    ejecutar()</span></pre>
+    </div>
+  </div>
+</div>
+
+<div class="pair-card">
+  <div class="pair-header">
+    <span class="rank">#8</span>
+    <span class="filenames">
+      <span title="dataset_python/prog_07_binary_search.py">prog_07_binary_search.py</span>
+      <span class="sep">↔</span>
+      <span title="dataset_python/prog_08_binary_search_v2.py">prog_08_binary_search_v2.py</span>
+    </span>
+    <span class="badge high">64.5% (tokens/SA)</span>
+  </div>
+
+  <!-- Métricas detalladas: tres variantes de similitud -->
+  <div class="metrics">
+    <span class="metric-item">Texto plano (difflib): <b>25.0%</b></span>
+    <span class="metric-item">Tokens (difflib): <b>97.2%</b></span>
+    <span class="metric-item">Tokens (Suffix Array): <b>64.5%</b></span>
+    <span class="metric-item">Subcadenas comunes: <b>1</b></span>
+  </div>
+
+  <!-- Código fuente en paralelo con líneas comunes resaltadas -->
+  <div class="code-grid">
+    <div class="code-pane">
+      <div class="pane-title">Archivo 1: prog_07_binary_search.py</div>
+      <pre># Binary search algorithm
+def binary_search(arr, target):
+    left, right = 0, len(arr) - 1
+<mark>    while left &lt;= right:</mark>
+<mark>        mid = (left + right) // 2</mark>
+<mark>        if arr[mid] == target:</mark>
+<mark>            return mid</mark>
+<mark>        elif arr[mid] &lt; target:</mark>
+<mark>            left = mid + 1</mark>
+<mark>        else:</mark>
+<mark>            right = mid - 1</mark>
+<mark>    return -1</mark>
+
+<mark>def main():</mark>
+<mark>    data = [2, 3, 4, 10, 40, 50, 60, 70]</mark>
+<mark>    target = 10</mark>
+<mark>    result = binary_search(data, target)</mark>
+<mark>    if result != -1:</mark>
+<mark>        print(f&quot;Element {target} found at index {result}&quot;)</mark>
+    else:
+        print(f&quot;Element {target} not found&quot;)
+
+if __name__ == &quot;__main__&quot;:
+    main()</pre>
+    </div>
+    <div class="code-pane">
+      <div class="pane-title">Archivo 2: prog_08_binary_search_v2.py</div>
+      <pre># Búsqueda binaria
+def busqueda_binaria(lista, objetivo):
+    izquierda, derecha = 0, len(lista) - 1
+<mark>    while izquierda &lt;= derecha:</mark>
+<mark>        medio = (izquierda + derecha) // 2</mark>
+<mark>        if lista[medio] == objetivo:</mark>
+<mark>            return medio</mark>
+<mark>        elif lista[medio] &lt; objetivo:</mark>
+<mark>            izquierda = medio + 1</mark>
+<mark>        else:</mark>
+<mark>            derecha = medio - 1</mark>
+<mark>    return -1</mark>
+
+<mark>def ejecutar():</mark>
+<mark>    datos = [2, 3, 4, 10, 40, 50, 60, 70]</mark>
+<mark>    buscado = 10</mark>
+<mark>    indice = busqueda_binaria(datos, buscado)</mark>
+<mark>    if indice != -1:</mark>
+<mark>        print(f&quot;Elemento {buscado} encontrado en índice {indice}&quot;)</mark>
+    else:
+        print(f&quot;Elemento {buscado} no encontrado&quot;)
+
+if __name__ == &quot;__main__&quot;:
+    ejecutar()</pre>
+    </div>
+  </div>
+
+  <!-- Fragmentos de tokens comunes detectados por Suffix Array -->
+  <div class="common-list">
+    <span class="cl-label">Subcadenas comunes (1):</span>
+    <span class="token-chip" title="while ID &lt;= ID : ID =…">while ID &lt;= ID : ID =…</span>
+  </div>
+
+  <!-- Salida de diff -u de UNIX (colapsable) -->
+  <div class="diff-section">
+    <button class="diff-toggle">▼ Ver diff -u de UNIX</button>
+    <div class="diff-content">
+      <pre><span style="color:#555;font-style:italic">--- dataset_python/prog_07_binary_search.py	2026-04-21 22:53:12</span>
+<span style="color:#555;font-style:italic">+++ dataset_python/prog_08_binary_search_v2.py	2026-04-21 22:53:12</span>
+<span style="background:#e8f0fe;color:#1a3a8a;font-weight:bold">@@ -1,24 +1,24 @@</span>
+<span style="background:#fde8eb;color:#8b0014">-# Binary search algorithm</span>
+<span style="background:#fde8eb;color:#8b0014">-def binary_search(arr, target):</span>
+<span style="background:#fde8eb;color:#8b0014">-    left, right = 0, len(arr) - 1</span>
+<span style="background:#fde8eb;color:#8b0014">-    while left &lt;= right:</span>
+<span style="background:#fde8eb;color:#8b0014">-        mid = (left + right) // 2</span>
+<span style="background:#fde8eb;color:#8b0014">-        if arr[mid] == target:</span>
+<span style="background:#fde8eb;color:#8b0014">-            return mid</span>
+<span style="background:#fde8eb;color:#8b0014">-        elif arr[mid] &lt; target:</span>
+<span style="background:#fde8eb;color:#8b0014">-            left = mid + 1</span>
+<span style="background:#e6f4ea;color:#1a5e30">+# Búsqueda binaria</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def busqueda_binaria(lista, objetivo):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    izquierda, derecha = 0, len(lista) - 1</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    while izquierda &lt;= derecha:</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        medio = (izquierda + derecha) // 2</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        if lista[medio] == objetivo:</span>
+<span style="background:#e6f4ea;color:#1a5e30">+            return medio</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        elif lista[medio] &lt; objetivo:</span>
+<span style="background:#e6f4ea;color:#1a5e30">+            izquierda = medio + 1</span>
+<span style="color:#444">         else:</span>
+<span style="background:#fde8eb;color:#8b0014">-            right = mid - 1</span>
+<span style="background:#e6f4ea;color:#1a5e30">+            derecha = medio - 1</span>
+<span style="color:#444">     return -1</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-def main():</span>
+<span style="background:#fde8eb;color:#8b0014">-    data = [2, 3, 4, 10, 40, 50, 60, 70]</span>
+<span style="background:#fde8eb;color:#8b0014">-    target = 10</span>
+<span style="background:#fde8eb;color:#8b0014">-    result = binary_search(data, target)</span>
+<span style="background:#fde8eb;color:#8b0014">-    if result != -1:</span>
+<span style="background:#fde8eb;color:#8b0014">-        print(f&quot;Element {target} found at index {result}&quot;)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def ejecutar():</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    datos = [2, 3, 4, 10, 40, 50, 60, 70]</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    buscado = 10</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    indice = busqueda_binaria(datos, buscado)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    if indice != -1:</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        print(f&quot;Elemento {buscado} encontrado en índice {indice}&quot;)</span>
+<span style="color:#444">     else:</span>
+<span style="background:#fde8eb;color:#8b0014">-        print(f&quot;Element {target} not found&quot;)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        print(f&quot;Elemento {buscado} no encontrado&quot;)</span>
+<span style="color:#444"> </span>
+<span style="color:#444"> if __name__ == &quot;__main__&quot;:</span>
+<span style="background:#fde8eb;color:#8b0014">-    main()</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    ejecutar()</span></pre>
+    </div>
+  </div>
+</div>
+
+<div class="pair-card">
+  <div class="pair-header">
+    <span class="rank">#9</span>
+    <span class="filenames">
+      <span title="dataset_python/prog_15_matrix_multiply.py">prog_15_matrix_multiply.py</span>
+      <span class="sep">↔</span>
+      <span title="dataset_python/prog_16_matrix_multiply_v2.py">prog_16_matrix_multiply_v2.py</span>
+    </span>
+    <span class="badge medium">58.6% (tokens/SA)</span>
+  </div>
+
+  <!-- Métricas detalladas: tres variantes de similitud -->
+  <div class="metrics">
+    <span class="metric-item">Texto plano (difflib): <b>40.0%</b></span>
+    <span class="metric-item">Tokens (difflib): <b>100.0%</b></span>
+    <span class="metric-item">Tokens (Suffix Array): <b>58.6%</b></span>
+    <span class="metric-item">Subcadenas comunes: <b>1</b></span>
+  </div>
+
+  <!-- Código fuente en paralelo con líneas comunes resaltadas -->
+  <div class="code-grid">
+    <div class="code-pane">
+      <div class="pane-title">Archivo 1: prog_15_matrix_multiply.py</div>
+      <pre># Matrix multiplication
+def matrix_multiply(A, B):
+    rows_A = len(A)
+    cols_A = len(A[0])
+    cols_B = len(B[0])
+    result = [[0] * cols_B for _ in range(rows_A)]
+    for i in range(rows_A):
+        for j in range(cols_B):
+            for k in range(cols_A):
+<mark>                result[i][j] += A[i][k] * B[k][j]</mark>
+<mark>    return result</mark>
+
+<mark>def print_matrix(matrix):</mark>
+<mark>    for row in matrix:</mark>
+<mark>        print(&quot; &quot;.join(map(str, row)))</mark>
+
+<mark>def main():</mark>
+<mark>    A = [[1, 2, 3], [4, 5, 6]]</mark>
+<mark>    B = [[7, 8], [9, 10], [11, 12]]</mark>
+<mark>    C = matrix_multiply(A, B)</mark>
+<mark>    print(&quot;Result:&quot;)</mark>
+<mark>    print_matrix(C)</mark>
+
+<mark>if __name__ == &quot;__main__&quot;:</mark>
+<mark>    main()</mark></pre>
+    </div>
+    <div class="code-pane">
+      <div class="pane-title">Archivo 2: prog_16_matrix_multiply_v2.py</div>
+      <pre># Multiplicación de matrices
+def multiplicar_matrices(A, B):
+    filas_A = len(A)
+    cols_A = len(A[0])
+    cols_B = len(B[0])
+    resultado = [[0] * cols_B for _ in range(filas_A)]
+    for i in range(filas_A):
+        for j in range(cols_B):
+            for k in range(cols_A):
+<mark>                resultado[i][j] += A[i][k] * B[k][j]</mark>
+<mark>    return resultado</mark>
+
+<mark>def imprimir_matriz(matriz):</mark>
+<mark>    for fila in matriz:</mark>
+<mark>        print(&quot; &quot;.join(map(str, fila)))</mark>
+
+<mark>def principal():</mark>
+<mark>    A = [[1, 2, 3], [4, 5, 6]]</mark>
+<mark>    B = [[7, 8], [9, 10], [11, 12]]</mark>
+<mark>    C = multiplicar_matrices(A, B)</mark>
+<mark>    print(&quot;Resultado:&quot;)</mark>
+<mark>    imprimir_matriz(C)</mark>
+
+<mark>if __name__ == &quot;__main__&quot;:</mark>
+<mark>    principal()</mark></pre>
+    </div>
+  </div>
+
+  <!-- Fragmentos de tokens comunes detectados por Suffix Array -->
+  <div class="common-list">
+    <span class="cl-label">Subcadenas comunes (1):</span>
+    <span class="token-chip" title="+= ID [ ID ] [ ID…">+= ID [ ID ] [ ID…</span>
+  </div>
+
+  <!-- Salida de diff -u de UNIX (colapsable) -->
+  <div class="diff-section">
+    <button class="diff-toggle">▼ Ver diff -u de UNIX</button>
+    <div class="diff-content">
+      <pre><span style="color:#555;font-style:italic">--- dataset_python/prog_15_matrix_multiply.py	2026-04-21 22:53:12</span>
+<span style="color:#555;font-style:italic">+++ dataset_python/prog_16_matrix_multiply_v2.py	2026-04-21 22:53:12</span>
+<span style="background:#e8f0fe;color:#1a3a8a;font-weight:bold">@@ -1,25 +1,25 @@</span>
+<span style="background:#fde8eb;color:#8b0014">-# Matrix multiplication</span>
+<span style="background:#fde8eb;color:#8b0014">-def matrix_multiply(A, B):</span>
+<span style="background:#fde8eb;color:#8b0014">-    rows_A = len(A)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+# Multiplicación de matrices</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def multiplicar_matrices(A, B):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    filas_A = len(A)</span>
+<span style="color:#444">     cols_A = len(A[0])</span>
+<span style="color:#444">     cols_B = len(B[0])</span>
+<span style="background:#fde8eb;color:#8b0014">-    result = [[0] * cols_B for _ in range(rows_A)]</span>
+<span style="background:#fde8eb;color:#8b0014">-    for i in range(rows_A):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    resultado = [[0] * cols_B for _ in range(filas_A)]</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    for i in range(filas_A):</span>
+<span style="color:#444">         for j in range(cols_B):</span>
+<span style="color:#444">             for k in range(cols_A):</span>
+<span style="background:#fde8eb;color:#8b0014">-                result[i][j] += A[i][k] * B[k][j]</span>
+<span style="background:#fde8eb;color:#8b0014">-    return result</span>
+<span style="background:#e6f4ea;color:#1a5e30">+                resultado[i][j] += A[i][k] * B[k][j]</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    return resultado</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-def print_matrix(matrix):</span>
+<span style="background:#fde8eb;color:#8b0014">-    for row in matrix:</span>
+<span style="background:#fde8eb;color:#8b0014">-        print(&quot; &quot;.join(map(str, row)))</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def imprimir_matriz(matriz):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    for fila in matriz:</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        print(&quot; &quot;.join(map(str, fila)))</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-def main():</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def principal():</span>
+<span style="color:#444">     A = [[1, 2, 3], [4, 5, 6]]</span>
+<span style="color:#444">     B = [[7, 8], [9, 10], [11, 12]]</span>
+<span style="background:#fde8eb;color:#8b0014">-    C = matrix_multiply(A, B)</span>
+<span style="background:#fde8eb;color:#8b0014">-    print(&quot;Result:&quot;)</span>
+<span style="background:#fde8eb;color:#8b0014">-    print_matrix(C)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    C = multiplicar_matrices(A, B)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    print(&quot;Resultado:&quot;)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    imprimir_matriz(C)</span>
+<span style="color:#444"> </span>
+<span style="color:#444"> if __name__ == &quot;__main__&quot;:</span>
+<span style="background:#fde8eb;color:#8b0014">-    main()</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    principal()</span></pre>
+    </div>
+  </div>
+</div>
+
+<div class="pair-card">
+  <div class="pair-header">
+    <span class="rank">#10</span>
+    <span class="filenames">
+      <span title="dataset_python/prog_04_fibonacci.py">prog_04_fibonacci.py</span>
+      <span class="sep">↔</span>
+      <span title="dataset_python/prog_06_fibonacci_v3.py">prog_06_fibonacci_v3.py</span>
+    </span>
+    <span class="badge medium">39.5% (tokens/SA)</span>
+  </div>
+
+  <!-- Métricas detalladas: tres variantes de similitud -->
+  <div class="metrics">
+    <span class="metric-item">Texto plano (difflib): <b>64.9%</b></span>
+    <span class="metric-item">Tokens (difflib): <b>89.6%</b></span>
+    <span class="metric-item">Tokens (Suffix Array): <b>39.5%</b></span>
+    <span class="metric-item">Subcadenas comunes: <b>2</b></span>
+  </div>
+
+  <!-- Código fuente en paralelo con líneas comunes resaltadas -->
+  <div class="code-grid">
+    <div class="code-pane">
+      <div class="pane-title">Archivo 1: prog_04_fibonacci.py</div>
+      <pre># Fibonacci sequence generator
+def fibonacci(n):
+    sequence = []
+    a, b = 0, 1
+    for _ in range(n):
+<mark>        sequence.append(a)</mark>
+<mark>        a, b = b, a + b</mark>
+    return sequence
+
+def print_fibonacci(limit):
+    result = fibonacci(limit)
+    for i, val in enumerate(result):
+<mark>        print(f&quot;F({i}) = {val}&quot;)</mark>
+
+<mark>if __name__ == &quot;__main__&quot;:</mark>
+<mark>    print_fibonacci(15)</mark></pre>
+    </div>
+    <div class="code-pane">
+      <div class="pane-title">Archivo 2: prog_06_fibonacci_v3.py</div>
+      <pre># Fibonacci with memoization
+memo = {}
+
+def fibonacci(n):
+    if n in memo:
+        return memo[n]
+    sequence = []
+    a, b = 0, 1
+    for _ in range(n):
+<mark>        sequence.append(a)</mark>
+<mark>        a, b = b, a + b</mark>
+    memo[n] = sequence
+    return sequence
+
+def display_fibonacci(count):
+    result = fibonacci(count)
+    for i, val in enumerate(result):
+<mark>        print(f&quot;F({i}) = {val}&quot;)</mark>
+
+<mark>if __name__ == &quot;__main__&quot;:</mark>
+<mark>    display_fibonacci(15)</mark></pre>
+    </div>
+  </div>
+
+  <!-- Fragmentos de tokens comunes detectados por Suffix Array -->
+  <div class="common-list">
+    <span class="cl-label">Subcadenas comunes (2):</span>
+    <span class="token-chip" title="f&quot; F( { ID } ) =  {…">f&quot; F( { ID } ) =  {…</span><span class="token-chip" title=". ID ( ID ) ID ,…">. ID ( ID ) ID ,…</span>
+  </div>
+
+  <!-- Salida de diff -u de UNIX (colapsable) -->
+  <div class="diff-section">
+    <button class="diff-toggle">▼ Ver diff -u de UNIX</button>
+    <div class="diff-content">
+      <pre><span style="color:#555;font-style:italic">--- dataset_python/prog_04_fibonacci.py	2026-04-21 22:53:12</span>
+<span style="color:#555;font-style:italic">+++ dataset_python/prog_06_fibonacci_v3.py	2026-04-21 22:53:12</span>
+<span style="background:#e8f0fe;color:#1a3a8a;font-weight:bold">@@ -1,16 +1,21 @@</span>
+<span style="background:#fde8eb;color:#8b0014">-# Fibonacci sequence generator</span>
+<span style="background:#e6f4ea;color:#1a5e30">+# Fibonacci with memoization</span>
+<span style="background:#e6f4ea;color:#1a5e30">+memo = {}</span>
+<span style="background:#e6f4ea;color:#1a5e30">+</span>
+<span style="color:#444"> def fibonacci(n):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    if n in memo:</span>
+<span style="background:#e6f4ea;color:#1a5e30">+        return memo[n]</span>
+<span style="color:#444">     sequence = []</span>
+<span style="color:#444">     a, b = 0, 1</span>
+<span style="color:#444">     for _ in range(n):</span>
+<span style="color:#444">         sequence.append(a)</span>
+<span style="color:#444">         a, b = b, a + b</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    memo[n] = sequence</span>
+<span style="color:#444">     return sequence</span>
+<span style="color:#444"> </span>
+<span style="background:#fde8eb;color:#8b0014">-def print_fibonacci(limit):</span>
+<span style="background:#fde8eb;color:#8b0014">-    result = fibonacci(limit)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+def display_fibonacci(count):</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    result = fibonacci(count)</span>
+<span style="color:#444">     for i, val in enumerate(result):</span>
+<span style="color:#444">         print(f&quot;F({i}) = {val}&quot;)</span>
+<span style="color:#444"> </span>
+<span style="color:#444"> if __name__ == &quot;__main__&quot;:</span>
+<span style="background:#fde8eb;color:#8b0014">-    print_fibonacci(15)</span>
+<span style="background:#e6f4ea;color:#1a5e30">+    display_fibonacci(15)</span></pre>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+  /* Botones para mostrar/ocultar la sección diff de cada par */
+  document.querySelectorAll('.diff-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const content = btn.nextElementSibling;
+      content.classList.toggle('open');
+      btn.textContent = content.classList.contains('open')
+        ? '▲ Ocultar diff -u de UNIX'
+        : '▼ Ver diff -u de UNIX';
+    });
+  });
+</script>
+</body>
+</html>
