@@ -1,6 +1,6 @@
 import ply.lex as lex
 
-# Definición de tokens para un lexer de C usando PLY
+# Definición de tokens para un lexer de codigos en lenguaje c usando PLY
 # En PLY, es mejor separar las palabras reservadas en un diccionario
 # en lugar de hacer una lista gigante de "ifs" dentro de t_ID.
 reserved = {
