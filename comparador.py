@@ -1,27 +1,30 @@
 """
 COMPARADOR DE CÓDIGO PYTHON — DETECTOR DE PLAGIO
 DESCRIPCIÓN GENERAL
-Este programa implementa un detector de similitud entre programas Python.
+En este programa implementamos un comparador de código Python para detectar similitudes entre archivos 
+en este caso extraidos de un dataset de estudiantes de codigos en python de mas de 60 lineas 
+
+Nestro programa ofrece dos variantes de comparación:
 
   Variante A — Texto plano:
-    Compara los archivos fuente directamente con difflib.SequenceMatcher.
-    Es equivalente al comando `diff` de UNIX sobre texto sin procesar.
-    Detecta copias literales o con cambios menores de formato.
+    En el cual se comparan los archivos fuente directamente con una libreria llamada
+    difflib.SequenceMatcher y es equivalente al comando `diff` de UNIX sobre texto sin procesar.
+    en donde etecta copias literales o con cambios menores de formato.
 
   Variante B — Texto preprocesado (tokens):
-    1. Tokeniza cada archivo con el módulo `tokenize` de Python (stdlib).
-    2. Normaliza los tokens: nombres → 'ID', números → 'NUM', etc.
-    3. Compara las secuencias de tokens con difflib.SequenceMatcher.
-    4. Encuentra subcadenas comunes largas con Suffix Array + LCP.
-    Detecta plagio aunque hayan cambiado nombres, literales o comentarios.
+    Aqui, primero se tokeniza cada archivo con el módulo `tokenize` de Python (stdlib)de aqui, 
+    se normalizan los tokens: nombres → 'ID', números → 'NUM', etc., de ahí hay dos métodos de comparacion:
+    en el primero se comparan las secuencias de tokens con difflib.SequenceMatcher. 
+    y en el segundo se encuentran subcadenas comunes largas con el algoritmo de Suffix Array + LCP, con esta variante
+    se detecta plagio aunque hayan cambiado nombres, literales o comentarios.
 
-El analizador léxico implementado con PLY es el
+El analizador léxico que implemnetamos con PLY es el
 equivalente para el lenguaje C de lo que `tokenize` hace para Python.
 Ambos cumplen la función de convertir texto fuente en una secuencia
 de tokens clasificados por tipo. 
 
-Además de difflib, el programa invoca el comando `diff` de UNIX directamente
-a través de subprocess que perimte:
+Además de difflib, nuestro programa invoca el comando `diff` de UNIX directamente
+a través de subprocess que nos perimte:
   - Obtener la salida estándar de diff (formato unified) para el reporte.
   - Verificar los resultados de difflib con una herramienta externa probada.
   - Incluir en el reporte HTML la vista diff coloreada (líneas + / -).
@@ -55,12 +58,6 @@ USO DESDE LÍNEA DE COMANDOS
 
     Ejemplo:
       python comparador_documentado.py dataset_python --top 10 --output reporte.html
-
-DEPENDENCIAS
-    - Python 3.8+
-    - Módulos estándar únicamente: tokenize, difflib, subprocess,
-      itertools, html, pathlib, argparse, dataclasses, math, io, os, sys
-    - Comando `diff` de UNIX disponible en el PATH (Linux/macOS/WSL)
 
 """
 
