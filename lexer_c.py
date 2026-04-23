@@ -1,6 +1,6 @@
 import ply.lex as lex
 
-# 1. DICCIONARIO DE PALABRAS RESERVADAS
+# Definición de tokens para un lexer de C usando PLY
 # En PLY, es mejor separar las palabras reservadas en un diccionario
 # en lugar de hacer una lista gigante de "ifs" dentro de t_ID.
 reserved = {
@@ -14,7 +14,7 @@ reserved = {
     'for': 'FOR'
 }
 
-# 2. LISTA DE TOKENS
+# lista de tokens, incluyendo los tokens de palabras reservadas
 # Sumamos nuestros tokens a los valores del diccionario de palabras reservadas
 tokens = [
     'ID', 'INT_CONST', 'FLOAT_CONST', 'STRING_LITERAL',
@@ -35,8 +35,8 @@ tokens = [
     'SEMI', 'COMMA'         # ; ,
 ] + list(reserved.values())
 
-# 3. EXPRESIONES REGULARES SIMPLES (PLY requiere el prefijo t_)
-# ¡Importante! Los tokens compuestos (==, ++) deben definirse ANTES que los simples (=, +).
+# regex simples y ply requiere el prefijo t_
+# Los tokens compuestos (==, ++) deben se definen ANTES que los simples (=, +).
 # PLY los evalúa en el orden en que se declaran usando su longitud.
 t_PLUSPLUS    = r'\+\+'
 t_MINUSMINUS  = r'--'
@@ -64,12 +64,13 @@ t_RBRACKET = r'\]'
 t_SEMI     = r';'
 t_COMMA    = r','
 
-# Caracteres a ignorar (espacios y tabuladores)
+# Caracteres a ignorar 
 t_ignore  = ' \t'
 
-# 4. EXPRESIONES REGULARES COMPLEJAS (Funciones)
+# se definen funciones para tokens que requieren procesamiento adicional
+# como contar líneas o convertir tipos de datos
 
-# Ignorar saltos de línea y contar las líneas correctamente
+# ignora saltos de línea y contar las líneas correctamente
 def t_newline(t):
     r'\n+'
     t.lexer.lineno += len(t.value)
@@ -80,10 +81,10 @@ def t_COMMENT_MULTI(t):
     t.lexer.lineno += t.value.count('\n')
     pass
 
-# Ignorar comentarios de una línea
+# ignnora los comentarios de una sola línea 
 def t_COMMENT(t):
     r'//.*'
-    pass # No retorna nada, así que el lexer lo descarta
+    pass # No hace nada, simplemente ignora el comentario
 
 # Ignorar directivas del preprocesador
 def t_PREPROCESSOR(t):
@@ -106,19 +107,20 @@ def t_STRING_LITERAL(t):
 
 def t_ID(t):
     r'[a-zA-Z_][a-zA-Z0-9_]*'
-    # Busca si el ID es en realidad una palabra reservada
+    # Busca si el ID es una palabra reservada y sino lo marca como id 
     t.type = reserved.get(t.value, 'ID')
     return t
 
-# Regla para manejar errores léxicos
+# se define una función de error para manejar caracteres ilegales
 def t_error(t):
     print(f"Error léxico: Carácter ilegal '{t.value[0]}' en la línea {t.lineno}")
     t.lexer.skip(1)
 
-# 5. CONSTRUCCIÓN DEL LEXER
+# se construye el lexer
 lexer = lex.lex()
 
-# 6. PRUEBA CON EL CÓDIGO ACTUALIZADO
+# este codigo es el ejemplo con el que se va a probar el lexer, 
+# incluye varias características del lenguaje C para asegurarnos de que el lexer las maneja correctamente.
 codigo_prueba = """
 #include <stdio.h>
 
@@ -142,7 +144,7 @@ int main() {
 
 lexer.input(codigo_prueba)
 
-# Imprimir el resultado final
+# Imprime los tokens generados por el lexer
 if __name__ == "__main__":
     for tok in lexer:
         print(tok)
